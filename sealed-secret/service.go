@@ -13,6 +13,7 @@ import (
 type SealedSecretService struct {
 	sealedSecretControllerName      string
 	sealedSecretControllerNamespace string
+	clusterDomain                   string
 	k8sClient                       *kubernetes.Clientset
 }
 
@@ -24,7 +25,7 @@ type encryptRequest struct {
 	values     map[string]string
 }
 
-func NewSealedSecretService(controllerNamespace, controllerName string) (SealedSecretService, error) {
+func NewSealedSecretService(controllerNamespace, controllerName, clusterDomain string) (SealedSecretService, error) {
 	var clientset *kubernetes.Clientset
 	var err error
 
@@ -40,6 +41,7 @@ func NewSealedSecretService(controllerNamespace, controllerName string) (SealedS
 	return SealedSecretService{
 		sealedSecretControllerNamespace: controllerNamespace,
 		sealedSecretControllerName:      controllerName,
+		clusterDomain:                   clusterDomain,
 		k8sClient:                       clientset,
 	}, nil
 }

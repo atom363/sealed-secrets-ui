@@ -15,7 +15,7 @@ import (
 
 func (s SealedSecretService) makeHttpRequest(ctx context.Context) (string, error) {
 	log.Info().Msg("making HTTP request to get public key")
-	uri := fmt.Sprintf("http://%s.%s.svc.cluster.local:8080/v1/cert.pem", s.sealedSecretControllerName, s.sealedSecretControllerNamespace)
+	uri := fmt.Sprintf("http://%s.%s.svc.%s:8080/v1/cert.pem", s.sealedSecretControllerName, s.sealedSecretControllerNamespace, s.clusterDomain)
 
 	httpClient := http.Client{Timeout: time.Duration(2) * time.Second}
 	req, err := http.NewRequestWithContext(ctx, "GET", uri, nil)

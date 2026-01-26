@@ -16,6 +16,7 @@ import (
 func NewRouter() http.Handler {
 	controllerNamespace := os.Getenv("SEALED_SECRETS_CONTROLLER_NAMESPACE")
 	controllerName := os.Getenv("SEALED_SECRETS_CONTROLLER_NAME")
+	clusterDomain := os.Getenv("CLUSTER_DOMAIN")
 
 	if controllerNamespace == "" {
 		controllerNamespace = "kube-system" // default namespace if sealed-secrets was installed with Helm
@@ -25,7 +26,11 @@ func NewRouter() http.Handler {
 		controllerName = "sealed-secrets-controller" // default controllerName if sealed-secrets was installed with Helm
 	}
 
-	svc, err := sealedsecret.NewSealedSecretService(controllerNamespace, controllerName)
+	if clusterDomain == "" {
+		clusterDomain = "cluster.local" // default cluster domain
+	}
+
+	svc, err := sealedsecret.NewSealedSecretService(controllerNamespace, controllerName, clusterDomain)
 	if err != nil {
 		log.Panic().Err(err).Msg("failed to create sealed secret service")
 	}

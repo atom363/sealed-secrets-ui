@@ -27,6 +27,7 @@ The application fetches the controller's public key using configurable environme
 
 - **SEALED_SECRETS_CONTROLLER_NAMESPACE**: Defaults to **kube-system** if left unset.
 - **SEALED_SECRETS_CONTROLLER_NAME**: Defaults to **sealed-secrets-controller** if left unset.
+- **CLUSTER_DOMAIN**: Defaults to **cluster.local** if left unset.
 
 These settings align with the default installation via Helm.
 
