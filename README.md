@@ -1,5 +1,7 @@
 # Sealed Secrets UI
 
+> This is a fork of [alpheya/sealed-secrets-ui](https://github.com/alpheya/sealed-secrets-ui) built from main with custom Kubernetes cluster domain support.
+
 Sealed Secrets UI provides a simple and intuitive web interface for creating and managing sealed secrets in Kubernetes. This service simplifies the traditional command-line workflow, making it easier for developers to securely manage secrets without remembering complex kubectl commands.
 
 ![Sealed Secrets UI](./sealed-secrets-ui.png)
@@ -63,7 +65,7 @@ spec:
       serviceAccountName: sealed-secrets-controller
       containers:
         - name: sealed-secrets-ui
-          image: alpheya/sealed-secrets-ui:0.3.3
+          image: atom363/sealed-secrets-ui:0.3.4
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
