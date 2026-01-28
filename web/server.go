@@ -2,8 +2,11 @@ package web
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
+
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,6 +15,28 @@ import (
 
 	"github.com/rs/zerolog/log"
 )
+
+
+func setupTLS() {
+	pool := x509.NewCertPool()
+	certFile := "ca-certificates.crt"
+	fi, err := os.ReadFile(certFile)
+	if err != nil {
+	 log.Warn().Msgf("Could not open %s for reading CAs", certFile)
+	} else {
+	 ok := pool.AppendCertsFromPEM(fi)
+	 if !ok {
+	  log.Warn().Msg("Certificates were not parsed correctly")
+	 }
+	 client := &http.Client{
+	  Transport: &http.Transport{
+	   TLSClientConfig: &tls.Config{RootCAs: pool},
+	  },
+	 }
+	 // Set the default client to the new client
+	 *http.DefaultClient = *client
+	}
+}
 
 func recoverer(next http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -47,6 +72,7 @@ func start(server *http.Server) {
 }
 
 func Start(port string) {
+	setupTLS()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer stop()
 

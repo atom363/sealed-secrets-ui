@@ -7,10 +7,10 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/a-h/templ"
-	sealedsecret "github.com/alpheya/sealed-secrets-ui/sealed-secret"
-	"github.com/alpheya/sealed-secrets-ui/web/assets"
-	"github.com/alpheya/sealed-secrets-ui/web/handlers"
-	"github.com/alpheya/sealed-secrets-ui/web/ui"
+	sealedsecret "github.com/atom363/sealed-secrets-ui/sealed-secret"
+	"github.com/atom363/sealed-secrets-ui/web/assets"
+	"github.com/atom363/sealed-secrets-ui/web/handlers"
+	"github.com/atom363/sealed-secrets-ui/web/ui"
 )
 
 func NewRouter() http.Handler {
@@ -40,6 +40,8 @@ func NewRouter() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/spinner.gif", http.FileServer(http.FS(assets.SpinnerFiles)))
 	mux.HandleFunc("/sealed-secret", handler.CreateSealedSecretHandler)
+	mux.HandleFunc("/namespaces", handler.NamespaceOptionsHandler)
+	mux.HandleFunc("/secrets", handler.SecretOptionsHandler)
 	mux.HandleFunc("/healthz", handlers.HealthHandler)
 	mux.Handle("/", templ.Handler(ui.Home()))
 

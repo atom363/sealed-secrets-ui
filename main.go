@@ -4,7 +4,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/alpheya/sealed-secrets-ui/web"
+	"github.com/atom363/sealed-secrets-ui/web"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )

@@ -5,7 +5,7 @@ import (
 	"crypto/rsa"
 	"fmt"
 
-	"github.com/alpheya/sealed-secrets-ui/model"
+	"github.com/atom363/sealed-secrets-ui/model"
 	"gopkg.in/yaml.v2"
 	"k8s.io/client-go/kubernetes"
 )
@@ -83,12 +83,14 @@ func (s SealedSecretService) CreateSealedSecret(ctx context.Context, opts model.
 	}
 
 	annotations := make(map[string]string)
-	if req.scope == "cluster" {
+	switch scope := req.scope; scope {
+	case "cluster":
 		annotations["sealedsecrets.bitnami.com/cluster-wide"] = "true"
-	} else if req.scope == "namespace" {
+	case "namespace":
 		annotations["sealedsecrets.bitnami.com/namespace-wide"] = "true"
+	default:
+		// if scope == strict we not need any annotations
 	}
-	// if scope == strict we not need any annotations
 
 	sealedSecret := model.SealedSecret{
 		APIVersion: "bitnami.com/v1alpha1",
@@ -116,6 +118,14 @@ func (s SealedSecretService) CreateSealedSecret(ctx context.Context, opts model.
 	}
 
 	return string(yamlData), nil
+}
+
+func (s SealedSecretService) ListNamespaces(ctx context.Context) ([]string, error) {
+	return s.listNamespaces(ctx)
+}
+
+func (s SealedSecretService) ListSecretNames(ctx context.Context, namespace string) ([]string, error) {
+	return s.listSecretNames(ctx, namespace)
 }
 
 func (s SealedSecretService) getLabel(req encryptRequest) string {

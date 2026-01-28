@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"net/http"
 	"strings"
 
-	"github.com/alpheya/sealed-secrets-ui/model"
-	"github.com/alpheya/sealed-secrets-ui/web/ui"
+	"github.com/atom363/sealed-secrets-ui/model"
+	"github.com/atom363/sealed-secrets-ui/web/ui"
 	"github.com/rs/zerolog/log"
 )
 
@@ -16,6 +17,8 @@ var escapedBacktick = strings.Join([]string{`\`, "`"}, "")
 
 type sealer interface {
 	CreateSealedSecret(context.Context, model.CreateOpts) (string, error)
+	ListNamespaces(context.Context) ([]string, error)
+	ListSecretNames(context.Context, string) ([]string, error)
 }
 
 type SealedSecretHandler struct {
@@ -34,6 +37,52 @@ func respondError(w http.ResponseWriter, message string) {
 		log.Err(err).Msg("error rendering error message")
 		http.Error(w, "Error rendering error message", http.StatusInternalServerError)
 	}
+}
+
+func renderDatalist(w http.ResponseWriter, id string, options []string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	var builder strings.Builder
+	builder.WriteString(`<datalist id="`)
+	builder.WriteString(html.EscapeString(id))
+	builder.WriteString(`">`)
+	for _, option := range options {
+		builder.WriteString(`<option value="`)
+		builder.WriteString(html.EscapeString(option))
+		builder.WriteString(`"></option>`)
+	}
+	builder.WriteString(`</datalist>`)
+	_, _ = w.Write([]byte(builder.String()))
+}
+
+func (s SealedSecretHandler) NamespaceOptionsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	namespaces, err := s.svc.ListNamespaces(r.Context())
+	if err != nil {
+		log.Ctx(r.Context()).Err(err).Msg("error listing namespaces")
+		namespaces = []string{}
+	}
+
+	renderDatalist(w, "namespace-options", namespaces)
+}
+
+func (s SealedSecretHandler) SecretOptionsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	namespace := r.URL.Query().Get("namespace")
+	secrets, err := s.svc.ListSecretNames(r.Context(), namespace)
+	if err != nil {
+		log.Ctx(r.Context()).Err(err).Msg("error listing secrets")
+		secrets = []string{}
+	}
+
+	renderDatalist(w, "secret-options", secrets)
 }
 
 func (s SealedSecretHandler) CreateSealedSecretHandler(w http.ResponseWriter, r *http.Request) {

@@ -1,4 +1,4 @@
-FROM golang:1.22.11-bookworm AS build
+FROM golang:1.25.6-bookworm AS build
 WORKDIR /go/src/app
 COPY . ./
 
@@ -11,8 +11,9 @@ ENV GOARCH=amd64
 RUN go mod tidy \
   && go build -o /go/bin/app -ldflags="-s -w"
 
-FROM gcr.io/distroless/static-debian11
+FROM scratch
 
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /ca-certificates.crt
 COPY --from=build /go/bin/app /
 
 CMD ["/app"]

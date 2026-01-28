@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"path/filepath"
+	"sort"
 
 	"github.com/rs/zerolog/log"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -61,4 +62,41 @@ func (s SealedSecretService) getSecretData(ctx context.Context, namespace, secre
 	data := decodeSecret(secret.Data)
 
 	return data, nil
+}
+
+func (s SealedSecretService) listNamespaces(ctx context.Context) ([]string, error) {
+	namespaces, err := s.k8sClient.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]string, 0, len(namespaces.Items))
+	for _, namespace := range namespaces.Items {
+		results = append(results, namespace.Name)
+	}
+
+	sort.Strings(results)
+	return results, nil
+}
+
+func (s SealedSecretService) listSecretNames(ctx context.Context, namespace string) ([]string, error) {
+	if namespace == "" {
+		return []string{}, nil
+	}
+
+	secrets, err := s.k8sClient.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
+	if apierrors.IsNotFound(err) {
+		return []string{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]string, 0, len(secrets.Items))
+	for _, secret := range secrets.Items {
+		results = append(results, secret.Name)
+	}
+
+	sort.Strings(results)
+	return results, nil
 }
