@@ -48,8 +48,21 @@ templ Home() {
 					<div class="field">
 						<label class="label">Namespace</label>
 						<div class="control">
-							<input class="input" id="namespace" type="text" required placeholder="Namespace" name="namespace" list="namespace-options" hx-get="/secrets" hx-include="#namespace" hx-trigger="change, keyup delay:500ms" hx-target="#secret-options" hx-swap="outerHTML"/>
-							<datalist id="namespace-options" hx-get="/namespaces" hx-trigger="load" hx-swap="outerHTML"></datalist>
+							<input 
+								class="input" 
+								id="namespace" 
+								type="text" 
+								required 
+								placeholder="Namespace" 
+								name="namespace" 
+								list="namespace-options" 
+								hx-get="/secrets" 
+								hx-include="#namespace" 
+								hx-trigger="change, keyup delay:500ms" 
+								hx-target="#secret-options"
+								hx-swap="outerHTML"
+							 />
+							<datalist id="namespace-options" hx-get="/namespaces" hx-trigger="load" hx-swap="outerHTML" hx-target="this"></datalist>
 						</div>
 					</div>
 					<div class="field">
