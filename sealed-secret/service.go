@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/rsa"
 	"fmt"
+	"strings"
 
 	"github.com/atom363/sealed-secrets-ui/model"
 	"gopkg.in/yaml.v2"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -15,6 +17,8 @@ type SealedSecretService struct {
 	sealedSecretControllerNamespace string
 	clusterDomain                   string
 	k8sClient                       *kubernetes.Clientset
+	dynamicClient                   dynamic.Interface
+	annotationsToPreserve           map[string]struct{}
 }
 
 type encryptRequest struct {
@@ -25,17 +29,23 @@ type encryptRequest struct {
 	values     map[string]string
 }
 
-func NewSealedSecretService(controllerNamespace, controllerName, clusterDomain string) (SealedSecretService, error) {
-	var clientset *kubernetes.Clientset
-	var err error
-
-	clientset, err = getClusterClient()
+func NewSealedSecretService(controllerNamespace, controllerName, clusterDomain string, annotationAllowlist []string) (SealedSecretService, error) {
+	config, err := getClusterConfig()
 	if err != nil {
-		clientset, err = getLocalClient()
+		config, err = getLocalConfig()
+	}
+	if err != nil {
+		return SealedSecretService{}, fmt.Errorf("failed to get Kubernetes config: %w", err)
 	}
 
+	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return SealedSecretService{}, fmt.Errorf("failed to get client: %w", err)
+		return SealedSecretService{}, fmt.Errorf("failed to create Kubernetes client: %w", err)
+	}
+
+	dynamicClient, err := dynamic.NewForConfig(config)
+	if err != nil {
+		return SealedSecretService{}, fmt.Errorf("failed to create Kubernetes dynamic client: %w", err)
 	}
 
 	return SealedSecretService{
@@ -43,6 +53,8 @@ func NewSealedSecretService(controllerNamespace, controllerName, clusterDomain s
 		sealedSecretControllerName:      controllerName,
 		clusterDomain:                   clusterDomain,
 		k8sClient:                       clientset,
+		dynamicClient:                   dynamicClient,
+		annotationsToPreserve:           toStringSet(annotationAllowlist),
 	}, nil
 }
 
@@ -82,14 +94,19 @@ func (s SealedSecretService) CreateSealedSecret(ctx context.Context, opts model.
 		return "", err
 	}
 
-	annotations := make(map[string]string)
-	switch scope := req.scope; scope {
-	case "cluster":
-		annotations["sealedsecrets.bitnami.com/cluster-wide"] = "true"
-	case "namespace":
-		annotations["sealedsecrets.bitnami.com/namespace-wide"] = "true"
-	default:
-		// if scope == strict we not need any annotations
+	scopeAnnotations := getScopeAnnotations(req.scope)
+	sealedSecretAnnotations := copyStringMap(scopeAnnotations)
+
+	preservedAnnotations, err := s.getSealedSecretAnnotations(ctx, opts.Namespace, opts.SecretName)
+	if err != nil {
+		return "", fmt.Errorf("failed to get existing sealed-secret annotations: %w", err)
+	}
+
+	for key, value := range preservedAnnotations {
+		if isScopeAnnotation(key) {
+			continue
+		}
+		sealedSecretAnnotations[key] = value
 	}
 
 	sealedSecret := model.SealedSecret{
@@ -98,7 +115,7 @@ func (s SealedSecretService) CreateSealedSecret(ctx context.Context, opts model.
 		Metadata: model.Metadata{
 			Name:        req.secretName,
 			Namespace:   req.namespace,
-			Annotations: annotations,
+			Annotations: sealedSecretAnnotations,
 		},
 		Spec: model.SealedSecretSpec{
 			EncryptedData: encryptedData,
@@ -106,7 +123,7 @@ func (s SealedSecretService) CreateSealedSecret(ctx context.Context, opts model.
 				Metadata: model.Metadata{
 					Name:        req.secretName,
 					Namespace:   req.namespace,
-					Annotations: annotations,
+					Annotations: scopeAnnotations,
 				},
 			},
 		},
@@ -151,4 +168,46 @@ func (s SealedSecretService) encryptValues(req encryptRequest) (map[string]strin
 	}
 
 	return encryptedData, nil
+}
+
+func toStringSet(values []string) map[string]struct{} {
+	results := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		results[value] = struct{}{}
+	}
+
+	return results
+}
+
+func copyStringMap(source map[string]string) map[string]string {
+	results := make(map[string]string, len(source))
+	for key, value := range source {
+		results[key] = value
+	}
+
+	return results
+}
+
+func getScopeAnnotations(scope string) map[string]string {
+	switch scope {
+	case "cluster":
+		return map[string]string{"sealedsecrets.bitnami.com/cluster-wide": "true"}
+	case "namespace":
+		return map[string]string{"sealedsecrets.bitnami.com/namespace-wide": "true"}
+	default:
+		return map[string]string{}
+	}
+}
+
+func isScopeAnnotation(annotationKey string) bool {
+	switch annotationKey {
+	case "sealedsecrets.bitnami.com/cluster-wide", "sealedsecrets.bitnami.com/namespace-wide":
+		return true
+	default:
+		return false
+	}
 }

@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 
@@ -17,6 +18,7 @@ func NewRouter() http.Handler {
 	controllerNamespace := os.Getenv("SEALED_SECRETS_CONTROLLER_NAMESPACE")
 	controllerName := os.Getenv("SEALED_SECRETS_CONTROLLER_NAME")
 	clusterDomain := os.Getenv("CLUSTER_DOMAIN")
+	annotationsToPreserve := parseCSV(os.Getenv("SEALED_SECRETS_PRESERVE_ANNOTATIONS"))
 
 	if controllerNamespace == "" {
 		controllerNamespace = "kube-system" // default namespace if sealed-secrets was installed with Helm
@@ -30,7 +32,7 @@ func NewRouter() http.Handler {
 		clusterDomain = "cluster.local" // default cluster domain
 	}
 
-	svc, err := sealedsecret.NewSealedSecretService(controllerNamespace, controllerName, clusterDomain)
+	svc, err := sealedsecret.NewSealedSecretService(controllerNamespace, controllerName, clusterDomain, annotationsToPreserve)
 	if err != nil {
 		log.Panic().Err(err).Msg("failed to create sealed secret service")
 	}
@@ -46,4 +48,18 @@ func NewRouter() http.Handler {
 	mux.Handle("/", templ.Handler(ui.Home()))
 
 	return mux
+}
+
+func parseCSV(raw string) []string {
+	values := strings.Split(raw, ",")
+	results := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		results = append(results, value)
+	}
+
+	return results
 }
